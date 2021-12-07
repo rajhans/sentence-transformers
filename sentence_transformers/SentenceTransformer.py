@@ -24,7 +24,7 @@ from distutils.dir_util import copy_tree
 from . import __MODEL_HUB_ORGANIZATION__
 from .evaluation import SentenceEvaluator
 from .util import import_from_string, batch_to_device, fullname, snapshot_download
-from .models import Transformer, TransformerParallel, Pooling, Dense
+from .models import Transformer, Pooling, Dense
 from .model_card_templates import ModelCardTemplate
 from . import __version__
 
@@ -40,11 +40,10 @@ class SentenceTransformer(nn.Sequential):
     :param cache_folder: Path to store models
     """
     def __init__(self, model_name_or_path: Optional[str] = None, modules: Optional[Iterable[nn.Module]] = None, device: Optional[str] = None, 
-                 cache_folder: Optional[str] = None, parallelize: bool = False):
+                 cache_folder: Optional[str] = None):
         self._model_card_vars = {}
         self._model_card_text = None
         self._model_config = {}
-
         if cache_folder is None:
             cache_folder = os.getenv('SENTENCE_TRANSFORMERS_HOME')
             if cache_folder is None:
@@ -585,6 +584,7 @@ class SentenceTransformer(nn.Sequential):
         :param train_objectives: Tuples of (DataLoader, LossFunction). Pass more than one for multi-task learning
         :param evaluator: An evaluator (sentence_transformers.evaluation) evaluates the model performance during training on held-out dev data. It is used to determine the best model that is saved to disc.
         :param epochs: Number of epochs for training
+
         :param steps_per_epoch: Number of training steps per epoch. If set to None (default), one epoch is equal the DataLoader size from train_objectives.
         :param scheduler: Learning rate scheduler. Available schedulers: constantlr, warmupconstant, warmuplinear, warmupcosine, warmupcosinewithhardrestarts
         :param warmup_steps: Behavior depends on the scheduler. For WarmupLinear (default), the learning rate is increased from o up to the maximal learning rate. After these many training steps, the learning rate is decreased linearly back to zero.
@@ -788,12 +788,9 @@ class SentenceTransformer(nn.Sequential):
         Creates a simple Transformer + Mean Pooling model and returns the modules
         """
         logging.warning("No sentence-transformers model found with name {}. Creating a new one with MEAN pooling.".format(model_name_or_path))
-        if self.parallelize:
-            transformer_model = TransformerParallel(model_name_or_path)
-            pooling_model = nn.DataParallel(Pooling(transformer_model.get_word_embedding_dimension(), 'mean'))
-        else:
-            transformer_model = Transformer(model_name_or_path)
-            pooling_model = Pooling(transformer_model.get_word_embedding_dimension(), 'mean')
+        # Make use of multiple gpus if available.
+        transformer_model = Transformer(model_name_or_path)
+        pooling_model = nn.DataParallel(Pooling(transformer_model.get_word_embedding_dimension(), 'mean'))
         return [transformer_model, pooling_model]
 
     def _load_sbert_model(self, model_path):
