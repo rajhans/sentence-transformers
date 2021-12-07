@@ -24,20 +24,23 @@ class Transformer(nn.Module):
         super(Transformer, self).__init__()
         self.config_keys = ['max_seq_length', 'do_lower_case']
         self.do_lower_case = do_lower_case
-
+        self.parallelize = parallelize
         config = AutoConfig.from_pretrained(model_name_or_path, **model_args, cache_dir=cache_dir)
         self.auto_model = AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir)
+        if parallelize:
+            self.auto_model = nn.DataParallel(self.auto_model)
+
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path if tokenizer_name_or_path is not None else model_name_or_path, cache_dir=cache_dir, **tokenizer_args)
 
         #No max_seq_length set. Try to infer from model
         if max_seq_length is None:
-            if hasattr(self.auto_model, "config") and hasattr(self.auto_model.config, "max_position_embeddings") and hasattr(self.tokenizer, "model_max_length"):
-                max_seq_length = min(self.auto_model.config.max_position_embeddings, self.tokenizer.model_max_length)
+            if hasattr(self.auto_model.module, "config") and hasattr(self.auto_model.module.config, "max_position_embeddings") and hasattr(self.tokenizer, "model_max_length"):
+                max_seq_length = min(self.auto_model.config.max_position_embeddings, self.tokenizer.model_max_length)    
 
         self.max_seq_length = max_seq_length
 
         if tokenizer_name_or_path is not None:
-            self.auto_model.config.tokenizer_class = self.tokenizer.__class__.__name__
+            self.auto_model.module.config.tokenizer_class = self.tokenizer.__class__.__name__
 
     def __repr__(self):
         return "Transformer({}) with Transformer model: {} ".format(self.get_config_dict(), self.auto_model.__class__.__name__)
@@ -53,7 +56,8 @@ class Transformer(nn.Module):
 
         features.update({'token_embeddings': output_tokens, 'attention_mask': features['attention_mask']})
 
-        if self.auto_model.config.output_hidden_states:
+
+        if self.auto_model.module.config.output_hidden_states:
             all_layer_idx = 2
             if len(output_states) < 3: #Some models only output last_hidden_states and all_hidden_states
                 all_layer_idx = 1
@@ -64,7 +68,7 @@ class Transformer(nn.Module):
         return features
 
     def get_word_embedding_dimension(self) -> int:
-        return self.auto_model.config.hidden_size
+        return self.auto_model.module.config.hidden_size
 
     def tokenize(self, texts: Union[List[str], List[Dict], List[Tuple[str, str]]]):
         """
@@ -104,7 +108,7 @@ class Transformer(nn.Module):
         return {key: self.__dict__[key] for key in self.config_keys}
 
     def save(self, output_path: str):
-        self.auto_model.save_pretrained(output_path)
+        self.auto_model.module.save_pretrained(output_path)
         self.tokenizer.save_pretrained(output_path)
 
         with open(os.path.join(output_path, 'sentence_bert_config.json'), 'w') as fOut:
