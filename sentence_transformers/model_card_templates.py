@@ -120,7 +120,7 @@ print(sentence_embeddings)
     def model_card_get_pooling_function(pooling_mode):
         if pooling_mode == 'max':
             return "max_pooling", """
-# Max Pooling - Take the max value over time for every dimension. 
+# Max Pooling - Take the max value over time for every dimension.
 def max_pooling(model_output, attention_mask):
     token_embeddings = model_output[0] #First element of model_output contains all token embeddings
     input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
@@ -158,7 +158,7 @@ def cls_pooling(model_output, attention_mask):
             dataloader_str = """**DataLoader**:\n\n`{}` of length {} with parameters:
 ```
 {}
-```""".format(fullname(dataloader), len(dataloader), loader_params)
+```""".format(fullname(dataloader), 0, loader_params)
 
             loss_str = "**Loss**:\n\n`{}` {}".format(fullname(loss),
  """with parameters:
