@@ -571,6 +571,7 @@ class SentenceTransformer(nn.Sequential):
             use_amp: bool = False,
             callback: Callable[[float, int, int], None] = None,
             show_progress_bar: bool = True,
+            print_steps: int = 100,
             checkpoint_path: str = None,
             checkpoint_save_steps: int = 500,
             checkpoint_save_total_limit: int = 0
@@ -674,7 +675,7 @@ class SentenceTransformer(nn.Sequential):
             running_loss = 0
             total = 0
             label_count = Counter()
-            for _ in trange(steps_per_epoch, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
+            for i in trange(steps_per_epoch, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 for train_idx in range(num_train_objectives):
                     loss_model = loss_models[train_idx]
                     optimizer = optimizers[train_idx]
@@ -713,8 +714,9 @@ class SentenceTransformer(nn.Sequential):
                     running_loss += loss_value.item() * len(features)
                     label_count.update(labels.data.tolist())
                     total += len(features)
-                    print(f"Running training loss: {running_loss/total}")   
-                    print(f"Label fraction of 1: {label_count[1]/(label_count[0] + label_count[1])}")
+                    if i % print_steps == 0:
+                        print(f"Running training loss: {running_loss/total}")   
+                        print(f"Label fraction of 1: {label_count[1]/(label_count[0] + label_count[1])}")
                     optimizer.zero_grad()
 
                     if not skip_scheduler:
