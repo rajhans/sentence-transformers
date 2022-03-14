@@ -3,6 +3,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, Auto
 import numpy as np
 import logging
 import os
+from collections import Counter
 from typing import Dict, Type, Callable, List
 import transformers
 import torch
@@ -103,6 +104,7 @@ class CrossEncoder():
             train_dataloader: DataLoader,
             evaluator: SentenceEvaluator = None,
             epochs: int = 1,
+            steps_per_epoch = None,
             loss_fct = None,
             activation_fct = nn.Identity(),
             scheduler: str = 'WarmupLinear',
@@ -116,7 +118,8 @@ class CrossEncoder():
             max_grad_norm: float = 1,
             use_amp: bool = False,
             callback: Callable[[float, int, int], None] = None,
-            show_progress_bar: bool = True
+            show_progress_bar: bool = True,
+            print_steps: int = 100,
             ):
         """
         Train the model with the given training objective
@@ -156,7 +159,11 @@ class CrossEncoder():
             os.makedirs(output_path, exist_ok=True)
 
         self.best_score = -9999999
-        num_train_steps = int(len(train_dataloader) * epochs)
+
+        if steps_per_epoch is None or steps_per_epoch == 0:
+            steps_per_epoch = min([len(dataloader) for dataloader in dataloaders])
+
+        num_train_steps = int(steps_per_epoch * epochs)
 
         # Prepare optimizers
         param_optimizer = list(self.model.named_parameters())
@@ -182,6 +189,9 @@ class CrossEncoder():
             self.model.zero_grad()
             self.model.train()
 
+            running_loss = 0
+            total = 0
+            label_count = Counter()
             for features, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 if use_amp:
                     with autocast():
@@ -209,6 +219,12 @@ class CrossEncoder():
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
                     optimizer.step()
 
+                running_loss += loss_value.item() * len(features)
+                label_count.update(labels.data.tolist())
+                total += len(features)
+                if i % print_steps == 0:
+                    print(f"Running training loss: {running_loss/total};")
+                    print(f"Label fraction of 1: {label_count[1]/(label_count[0] + label_count[1])};")
                 optimizer.zero_grad()
 
                 if not skip_scheduler:
@@ -319,4 +335,3 @@ class CrossEncoder():
         Same function as save
         """
         return self.save(path)
-

@@ -715,8 +715,8 @@ class SentenceTransformer(nn.Sequential):
                     label_count.update(labels.data.tolist())
                     total += len(features)
                     if i % print_steps == 0:
-                        print(f"Running training loss: {running_loss/total}")   
-                        print(f"Label fraction of 1: {label_count[1]/(label_count[0] + label_count[1])}")
+                        print(f"Running training loss: {running_loss/total};")
+                        print(f"Label fraction of 1: {label_count[1]/(label_count[0] + label_count[1])};")
                     optimizer.zero_grad()
 
                     if not skip_scheduler:
