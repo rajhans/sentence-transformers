@@ -161,7 +161,7 @@ class CrossEncoder():
         self.best_score = -9999999
 
         if steps_per_epoch is None or steps_per_epoch == 0:
-            steps_per_epoch = min([len(dataloader) for dataloader in dataloaders])
+            steps_per_epoch = len(train_dataloader)
 
         num_train_steps = int(steps_per_epoch * epochs)
 
