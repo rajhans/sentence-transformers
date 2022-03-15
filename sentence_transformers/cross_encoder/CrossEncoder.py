@@ -1,4 +1,3 @@
-
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, AutoConfig
 import numpy as np
 import logging
@@ -192,6 +191,7 @@ class CrossEncoder():
             running_loss = 0
             total = 0
             label_count = Counter()
+            i = 0
             for features, labels in tqdm(train_dataloader, desc="Iteration", smoothing=0.05, disable=not show_progress_bar):
                 if use_amp:
                     with autocast():
@@ -237,6 +237,8 @@ class CrossEncoder():
 
                     self.model.zero_grad()
                     self.model.train()
+
+                i += 1
 
             if evaluator is not None:
                 self._eval_during_training(evaluator, output_path, save_best_model, epoch, -1, callback)
