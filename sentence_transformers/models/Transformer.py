@@ -24,9 +24,8 @@ class Transformer(nn.Module):
         super(Transformer, self).__init__()
         self.config_keys = ['max_seq_length', 'do_lower_case']
         self.do_lower_case = do_lower_case
-        config = AutoConfig.from_pretrained(model_name_or_path, **model_args, cache_dir=cache_dir)
-        # Use dataparallel to make use of multiple gpus.        
-        self.auto_model = nn.DataParallel(AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir))
+        config = AutoConfig.from_pretrained(model_name_or_path, **model_args, cache_dir=cache_dir) 
+        self._load_model(model_name_or_path, config, cache_dir)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path if tokenizer_name_or_path is not None else model_name_or_path, cache_dir=cache_dir, **tokenizer_args)
 
         #No max_seq_length set. Try to infer from model
@@ -45,7 +44,8 @@ class Transformer(nn.Module):
         if isinstance(config, T5Config):
             self._load_t5_model(model_name_or_path, config, cache_dir)
         else:
-            self.auto_model = AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir)
+            # Use dataparallel to make use of multiple gpus.       
+            self.auto_model = nn.DataParallel(AutoModel.from_pretrained(model_name_or_path, config=config, cache_dir=cache_dir))
 
     def _load_t5_model(self, model_name_or_path, config, cache_dir):
         """Loads the encoder model from T5"""
